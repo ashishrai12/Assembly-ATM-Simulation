@@ -41,10 +41,11 @@ The Assembly code is written for the 89C51 microcontroller.
 - **Port 2**: Keypad Rows/Columns
 
 ### 2. Running Simulations (Python)
-To verify the logic without hardware, you can run the Python simulator:
+To verify the logic without hardware, you can run the Python simulation suite:
+
 ```bash
 # Install dependencies
-pip install matplotlib pytest
+pip install -r requirements.txt
 
 # Run the simulation and generate plots
 python tests/simulator.py
@@ -52,6 +53,7 @@ python tests/simulator.py
 # Run unit tests
 pytest tests/test_atm.py
 ```
+
 
 ### 3. Assembly Compilation
 Use any 8051 assembler (e.g., Keil uVision, ASEM-51, or SDCC) to compile `src/atm_system.asm` into a HEX file for flashing.
