@@ -1,165 +1,156 @@
 ;====================================================================
 ; Title: Password Protected ATM System
+; Toolchain: SDCC (sdas8051)
 ; Processor: 8051 (89C51)
-; Description: 
-;   A simple ATM prototype that requires a PIN (1234) to access.
-;   Once authenticated, the user can perform:
-;   - Withdraw (P1.0)
-;   - Deposit (P1.1)
-;   - Check Balance (P1.2)
 ;====================================================================
 
-; PIN Definition (stored in data memory or code space)
-ORG 0000H
-    LJMP MAIN
+.module ATM_SYSTEM
+.optsdcc -mmcs51 --model-small
+
+; Define standard SFRs if not predefined (sdas8051 usually knows them, 
+; but good practice to map or rely on include)
+; For simplicity, we assume standard 8051 registers (P0, P1, P2, ACC, B, DPTR, etc.) 
+; are recognized or mapped by the linker.
+
+; Code Segment at 0x0000 (Reset Vector)
+.area BOOT (ABS,CODE)
+.org 0x0000
+    ljmp MAIN
 
 ; --- Data Constants (ASCII Strings) ---
-ORG 0050H
-    DB 'ACCESS  ', 0    ; String for successful login
+.area CONST (ABS,CODE)
+.org 0x0050
+    .ascii "ACCESS  "
+    .db 0x00
 
-ORG 0095H
-    DB 'PIN:    ', 0    ; Prompt for PIN
+.org 0x0095
+    .ascii "PIN:    "
+    .db 0x00
 
-ORG 00B0H
-    DB '1','2','3','4'   ; Correct PIN
+.org 0x00B0
+    .ascii "1234"
 
 ; --- Main Program ---
-ORG 0100H
+.area CSEG (ABS,CODE)
+.org 0x0100
 MAIN:
-    MOV P1, #0FFH       ; Set P1 for input
-    MOV P2, #07H        ; Initialize Keypad Columns
-    MOV P0, #00H        ; Clear LCD Data Port
+    mov P1, #0xFF       ; Set P1 for input
+    mov P2, #0x07       ; Initialize Keypad Columns
+    mov P0, #0x00       ; Clear LCD Data Port
 
     ; Display "PIN: "
-    MOV DPTR, #0095H
-    ACALL UPDATE_LCD
+    mov dptr, #0x0095
+    lcall UPDATE_LCD
     
     ; Perform PIN Authentication
-    ACALL PIN_CHECK
+    lcall PIN_CHECK
     
     ; If PIN correct, display "ACCESS"
-    MOV DPTR, #0050H
-    ACALL UPDATE_LCD
+    mov dptr, #0x0050
+    lcall UPDATE_LCD
     
 ATM_LOOP:
-    MOV A, P1
-    ANL A, #07H         ; Mask lower 3 bits for ATM functions
-    JZ ATM_LOOP         ; Wait for input
+    mov a, P1
+    anl a, #0x07         ; Mask lower 3 bits for ATM functions
+    jz ATM_LOOP          ; Wait for input
     
     ; Jump to respective functions
-    JB ACC.0, WITHDRAW
-    JB ACC.1, DEPOSIT
-    JB ACC.2, BALANCE
-    SJMP ATM_LOOP
+    jb acc+0, WITHDRAW
+    jb acc+1, DEPOSIT
+    jb acc+2, BALANCE
+    sjmp ATM_LOOP
 
 WITHDRAW:
-    INC R2              ; Simulate withdrawal (increment counter)
-    ACALL DELAY_SUCCESS ; Visual feedback
-    SJMP ATM_LOOP
+    inc r2              ; Simulate withdrawal (increment counter)
+    lcall DELAY_SUCCESS ; Visual feedback
+    sjmp ATM_LOOP
 
 DEPOSIT:
-    INC R3              ; Simulate deposit (increment counter)
-    ACALL DELAY_SUCCESS
-    SJMP ATM_LOOP
+    inc r3              ; Simulate deposit (increment counter)
+    lcall DELAY_SUCCESS
+    sjmp ATM_LOOP
 
 BALANCE:
-    INC R4              ; Simulate balance check (increment counter)
-    ACALL DELAY_SUCCESS
-    SJMP ATM_LOOP
+    inc r4              ; Simulate balance check (increment counter)
+    lcall DELAY_SUCCESS
+    sjmp ATM_LOOP
 
 ; --- Subroutines ---
 
 PIN_CHECK:
-    L4: MOV R1, #0B0H   ; Pointer to correct PIN
-        MOV R2, #4      ; 4 digits to check
-    L2: ACALL KEY_QUERY ; Wait for key press
-        MOV A, R0       ; R0 contains the pressed key (from KEY_QUERY)
-        JZ L2           ; If no key, keep waiting
-        
-        ; Compare with stored PIN
-        MOVX A, @R1     ; Actually, if it's in Code space, should use MOVC
-        ; But original code used MOVX? Let's assume it's external RAM or fix it.
-        ; Original code used: mov r1,#0B0h, movx a,@r1. 
-        ; On 8051 movx is for external data memory. 
-        ; If DB is used in code space, it should be MOVC A, @A+DPTR.
-        ; I'll fix the code to be more standard.
-        
-        MOV A, #0
-        MOVC A, @A+DPTR ; This would need DPTR to point to PIN.
-        
-        ; Let's stick to the user's logic but make it cleaner.
-        CLR A
-        MOV A, R1
-        MOV DPTR, #0000H
-        MOVC A, @A+DPTR ; Use R1 as offset if PIN is at 00B0H
-        
-        SUBB A, R0
-        JNZ L4          ; Incorrect digit -> Restart check
-        
-        INC R1
-        DJNZ R2, L2
-    RET
+    ; R0 would typically be set by KEY_QUERY
+L4: mov r1, #0xB0       ; Pointer to correct PIN (low byte)
+    mov r2, #4          ; 4 digits to check
+L2: lcall KEY_QUERY     ; Wait for key press
+    mov a, r0           ; R0 contains the pressed key
+    jz L2               ; If no key, keep waiting
+    
+    ; Compare with stored PIN
+    ; Since PIN is in CODE space at 0x00B0, we need MOVC
+    mov a, r1           ; Move offset (0xB0) to A
+    mov dptr, #0x0000   ; Base address 0
+    movc a, @a+dptr     ; Read PIN byte from code memory
+    
+    clr c
+    subb a, r0          ; Compare with input
+    jnz L4              ; Incorrect digit -> Restart check
+    
+    inc r1
+    djnz r2, L2
+    ret
 
 KEY_QUERY:
-    ; Simplified Keypad scanning logic (similar to original)
-    MOV R0, #0
-SCAN:
-    ; This is a placeholder for the keypad scan logic from the original file
-    ; For the purpose of the demo code, we assume R0 gets the key
-    ; In the simulation script we will model this behavior
-    ACALL DELAY
-    ; ... (Logic from original code check_data would go here)
-    ; For now, let's keep the core structure clean.
-    RET
+    ; Placeholder for keypad scanning
+    mov r0, #0x31       ; Simulate key '1' for test (or other logic)
+    lcall DELAY
+    ret
 
 UPDATE_LCD:
-    MOV R6, #8          ; Character count
-    ACALL LCD_INIT
-L1: INC DPTR
-    CLR A
-    MOVC A, @A+DPTR
-    ACALL LDATA
-    DJNZ R6, L1
-    RET
+    mov r6, #8          ; Character count
+    lcall LCD_INIT
+L1_LCD:
+    inc dptr
+    clr a
+    movc a, @a+dptr
+    lcall LDATA
+    djnz r6, L1_LCD
+    ret
 
 LCD_INIT:
-    MOV A, #38H
-    ACALL CMD
-    MOV A, #06H
-    ACALL CMD
-    MOV A, #01H
-    ACALL CMD
-    MOV A, #0E0H
-    ACALL CMD
-    MOV A, #80H
-    ACALL CMD
-    RET
+    mov a, #0x38
+    lcall CMD
+    mov a, #0x06
+    lcall CMD
+    mov a, #0x01
+    lcall CMD
+    mov a, #0xE0
+    lcall CMD
+    mov a, #0x80
+    lcall CMD
+    ret
 
 CMD:
-    CLR P1.7            ; RS=0 for command
-    MOV P0, A           ; Put command on P0
-    SETB P3.6           ; EN=1
-    ACALL DELAY
-    CLR P3.6            ; EN=0
-    RET
+    clr P1+7            ; RS=0 for command
+    mov P0, a           ; Put command on P0
+    setb P3+6           ; EN=1
+    lcall DELAY
+    clr P3+6            ; EN=0
+    ret
 
 LDATA:
-    SETB P1.7           ; RS=1 for data
-    MOV P0, A           ; Put data on P0
-    SETB P1.6           ; EN=1
-    ACALL DELAY
-    CLR P1.6            ; EN=0
-    RET
+    setb P1+7           ; RS=1 for data
+    mov P0, a           ; Put data on P0
+    setb P1+6           ; EN=1
+    lcall DELAY
+    clr P1+6            ; EN=0
+    ret
 
 DELAY:
-    MOV R7, #255
-D1: DJNZ R7, D1
-    RET
+    mov r7, #255
+D1: djnz r7, D1
+    ret
 
 DELAY_SUCCESS:
-    ; Brief delay to simulate processing
-    ACALL DELAY
-    ACALL DELAY
-    RET
-
-END
+    lcall DELAY
+    lcall DELAY
+    ret

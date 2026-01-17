@@ -18,10 +18,14 @@ all: build test
 .PHONY: build
 build:
 	@mkdir -p $(BUILD_DIR)
-	# Using SDCC for 8051 assembly (adjust if you use a different assembler)
-	$(PIP) install sdcc || true
-	sdcc -mmcs51 -c $(SRC_DIR)/atm_system.asm -o $(BUILD_DIR)/atm.o
-	sdcc -mmcs51 $(BUILD_DIR)/atm.o -o $(BUILD_DIR)/atm.hex
+	# Assemble
+	sdas8051 -plosgff $(SRC_DIR)/atm_system.asm
+	# Move artifact to build dir
+	mv $(SRC_DIR)/atm_system.rel $(BUILD_DIR)/atm.rel
+	# Link (using sdcc to handle generic 8051 linking)
+	sdcc $(BUILD_DIR)/atm.rel -o $(BUILD_DIR)/atm.ihx
+	# Convert to HEX
+	packihx $(BUILD_DIR)/atm.ihx > $(BUILD_DIR)/atm.hex
 
 # Run Python simulation and generate plots
 .PHONY: sim
