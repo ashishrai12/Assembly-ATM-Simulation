@@ -16,7 +16,8 @@ jobs:
       - name: Build Assembly
         run: |
           mkdir -p build
-          as31 -Fhex -o build/atm.hex src/atm_system.asm
+          as31 -Fhex src/atm_system.asm
+          mv src/atm_system.hex build/atm.hex
       - name: Upload HEX artifact
         uses: actions/upload-artifact@v4
         with:

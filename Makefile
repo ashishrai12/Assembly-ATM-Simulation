@@ -18,8 +18,9 @@ all: build test
 .PHONY: build
 build:
 	@mkdir -p $(BUILD_DIR)
-	# Check if as31 is installed (or use pip/apt)
-	as31 -Fhex -o $(BUILD_DIR)/atm.hex $(SRC_DIR)/atm_system.asm
+# Check if as31 is installed (or use pip/apt)
+	as31 -Fhex $(SRC_DIR)/atm_system.asm
+	mv $(SRC_DIR)/atm_system.hex $(BUILD_DIR)/atm.hex
 
 # Run Python simulation and generate plots
 .PHONY: sim
