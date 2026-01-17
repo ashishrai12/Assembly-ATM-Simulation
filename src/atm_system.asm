@@ -4,18 +4,6 @@
 ; Processor: 8051 (89C51)
 ;====================================================================
 
-; --- Standard SFR Definitions ---
-.equ P0,      0x80
-.equ P1,      0x90
-.equ P2,      0xA0
-.equ P3,      0xB0
-.equ PSW,     0xD0
-.equ ACC,     0xE0
-.equ B,       0xF0
-.equ SP,      0x81
-.equ DPL,     0x82
-.equ DPH,     0x83
-
 ; --- Bit Definitions ---
 .equ P1_0,    0x90
 .equ P1_1,    0x91
@@ -65,35 +53,19 @@ ATM_LOOP:
     jz ATM_LOOP          ; Wait for input
     
     ; Check individual bits
-    ; P1 is already in A (masked), but let's reload to be safe and check bits
     mov a, P1
-    jb ACC+0, WITHDRAW    ; as31 allows ACC+0 syntax for bit addressing often, 
-                          ; or we define ACC_0. Standard 8051 uses ACC.0
-                          ; as31 might prefer numeric addresses for bit ops if symbols fail.
-                          ; Let's use the numeric bit address if possible or the .equ symbols.
     
-    ; Actually, to be safe with as31, let's use the defined bit symbols.
-    ; But we haven't defined ACC bits.
-    ; P1.0 is 0x90.
-    
-    jnb P1_0, ATM_LOOP_CONT ; logic for active low/high? 
-                            ; Original code: JB ACC.0 
-                            ; Let's just reproduce logic:
-                            
-    jb ACC+0, WITHDRAW      ; as31 usually handles Register.Bit if Register is known, 
-                            ; but ACC is just a number 0xE0. 
-                            ; 0xE0.0 is syntax valid? Maybe not.
-                            ; safer: 0xE0 (ACC_0)
-    
-    ; Let's define ACC bits to be safe
-    .equ ACC_0, 0xE0
-    .equ ACC_1, 0xE1
-    .equ ACC_2, 0xE2
+    ; Check Bit 0 (Active High logic assumed)
+    jnb ACC.0, CHECK_DEP 
+    ljmp WITHDRAW        ; Use ljmp to avoid range issues if code grows
 
-    jb ACC_0, WITHDRAW
-    jb ACC_1, DEPOSIT
-    jb ACC_2, BALANCE
-    sjmp ATM_LOOP
+CHECK_DEP:
+    jnb ACC.1, CHECK_BAL
+    ljmp DEPOSIT
+
+CHECK_BAL:
+    jnb ACC.2, ATM_LOOP_CONT
+    ljmp BALANCE
 
 ATM_LOOP_CONT:
     sjmp ATM_LOOP
@@ -116,7 +88,7 @@ BALANCE:
 ; --- Subroutines ---
 
 PIN_CHECK:
-L4: mov r1, #0xB0       ; Low byte of PIN_CODE address (simplification)
+L4: mov r1, #0xB0       ; Low byte of PIN_CODE address
     mov r2, #4
 L2: acall KEY_QUERY
     mov a, r0
