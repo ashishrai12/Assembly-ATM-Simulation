@@ -7,10 +7,33 @@
 .module ATM_SYSTEM
 .optsdcc -mmcs51 --model-small
 
-; Define standard SFRs if not predefined (sdas8051 usually knows them, 
-; but good practice to map or rely on include)
-; For simplicity, we assume standard 8051 registers (P0, P1, P2, ACC, B, DPTR, etc.) 
-; are recognized or mapped by the linker.
+; --- SFR Definitions ---
+P0      = 0x80
+P1      = 0x90
+P2      = 0xA0
+P3      = 0xB0
+PSW     = 0xD0
+ACC     = 0xE0
+B       = 0xF0
+SP      = 0x81
+DPL     = 0x82
+DPH     = 0x83
+
+; --- Bit Definitions ---
+; Port 1 Bits
+P1_0    = 0x90
+P1_1    = 0x91
+P1_2    = 0x92
+P1_6    = 0x96
+P1_7    = 0x97
+
+; Port 3 Bits
+P3_6    = 0xB6
+
+; Accumulator Bits
+ACC_0   = 0xE0
+ACC_1   = 0xE1
+ACC_2   = 0xE2
 
 ; Code Segment at 0x0000 (Reset Vector)
 .area BOOT (ABS,CODE)
@@ -55,9 +78,9 @@ ATM_LOOP:
     jz ATM_LOOP          ; Wait for input
     
     ; Jump to respective functions
-    jb acc+0, WITHDRAW
-    jb acc+1, DEPOSIT
-    jb acc+2, BALANCE
+    jb ACC_0, WITHDRAW
+    jb ACC_1, DEPOSIT
+    jb ACC_2, BALANCE
     sjmp ATM_LOOP
 
 WITHDRAW:
@@ -78,7 +101,6 @@ BALANCE:
 ; --- Subroutines ---
 
 PIN_CHECK:
-    ; R0 would typically be set by KEY_QUERY
 L4: mov r1, #0xB0       ; Pointer to correct PIN (low byte)
     mov r2, #4          ; 4 digits to check
 L2: lcall KEY_QUERY     ; Wait for key press
@@ -86,10 +108,9 @@ L2: lcall KEY_QUERY     ; Wait for key press
     jz L2               ; If no key, keep waiting
     
     ; Compare with stored PIN
-    ; Since PIN is in CODE space at 0x00B0, we need MOVC
-    mov a, r1           ; Move offset (0xB0) to A
-    mov dptr, #0x0000   ; Base address 0
-    movc a, @a+dptr     ; Read PIN byte from code memory
+    mov a, r1           ; Move offset
+    mov dptr, #0x0000   
+    movc a, @a+dptr     ; Read PIN byte
     
     clr c
     subb a, r0          ; Compare with input
@@ -101,7 +122,7 @@ L2: lcall KEY_QUERY     ; Wait for key press
 
 KEY_QUERY:
     ; Placeholder for keypad scanning
-    mov r0, #0x31       ; Simulate key '1' for test (or other logic)
+    mov r0, #0x31       ; Simulate key '1' for test
     lcall DELAY
     ret
 
@@ -130,19 +151,19 @@ LCD_INIT:
     ret
 
 CMD:
-    clr P1+7            ; RS=0 for command
+    clr P1_7            ; RS=0 for command
     mov P0, a           ; Put command on P0
-    setb P3+6           ; EN=1
+    setb P3_6           ; EN=1
     lcall DELAY
-    clr P3+6            ; EN=0
+    clr P3_6            ; EN=0
     ret
 
 LDATA:
-    setb P1+7           ; RS=1 for data
+    setb P1_7           ; RS=1 for data
     mov P0, a           ; Put data on P0
-    setb P1+6           ; EN=1
+    setb P1_6           ; EN=1
     lcall DELAY
-    clr P1+6            ; EN=0
+    clr P1_6            ; EN=0
     ret
 
 DELAY:
