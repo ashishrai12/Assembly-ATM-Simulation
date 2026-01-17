@@ -23,7 +23,7 @@ build:
 	# Move artifact to build dir
 	mv $(SRC_DIR)/atm_system.rel $(BUILD_DIR)/atm.rel
 	# Link (using sdcc to handle generic 8051 linking)
-	sdcc $(BUILD_DIR)/atm.rel -o $(BUILD_DIR)/atm.ihx
+	sdcc -mmcs51 $(BUILD_DIR)/atm.rel -o $(BUILD_DIR)/atm.ihx
 	# Convert to HEX
 	packihx $(BUILD_DIR)/atm.ihx > $(BUILD_DIR)/atm.hex
 
