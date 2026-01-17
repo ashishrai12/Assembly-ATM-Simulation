@@ -18,14 +18,8 @@ all: build test
 .PHONY: build
 build:
 	@mkdir -p $(BUILD_DIR)
-	# Assemble
-	sdas8051 -plosgff $(SRC_DIR)/atm_system.asm
-	# Move artifact to build dir
-	mv $(SRC_DIR)/atm_system.rel $(BUILD_DIR)/atm.rel
-	# Link (using sdcc to handle generic 8051 linking)
-	sdcc -mmcs51 $(BUILD_DIR)/atm.rel -o $(BUILD_DIR)/atm.ihx
-	# Convert to HEX
-	packihx $(BUILD_DIR)/atm.ihx > $(BUILD_DIR)/atm.hex
+	# Check if as31 is installed (or use pip/apt)
+	as31 -Fhex -o $(BUILD_DIR)/atm.hex $(SRC_DIR)/atm_system.asm
 
 # Run Python simulation and generate plots
 .PHONY: sim

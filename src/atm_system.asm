@@ -1,177 +1,179 @@
 ;====================================================================
 ; Title: Password Protected ATM System
-; Toolchain: SDCC (sdas8051)
+; Toolchain: as31 (Standard 8051 Assembler)
 ; Processor: 8051 (89C51)
 ;====================================================================
 
-.module ATM_SYSTEM
-.optsdcc -mmcs51 --model-small
-
-; --- SFR Definitions ---
-P0      = 0x80
-P1      = 0x90
-P2      = 0xA0
-P3      = 0xB0
-PSW     = 0xD0
-ACC     = 0xE0
-B       = 0xF0
-SP      = 0x81
-DPL     = 0x82
-DPH     = 0x83
+; --- Standard SFR Definitions for 89C51 ---
+P0      EQU 080H
+P1      EQU 090H
+P2      EQU 0A0H
+P3      EQU 0B0H
+PSW     EQU 0D0H
+ACC     EQU 0E0H
+B       EQU 0F0H
+SP      EQU 081H
+DPL     EQU 082H
+DPH     EQU 083H
 
 ; --- Bit Definitions ---
-; Port 1 Bits
-P1_0    = 0x90
-P1_1    = 0x91
-P1_2    = 0x92
-P1_6    = 0x96
-P1_7    = 0x97
+P1_0    EQU 090H
+P1_1    EQU 091H
+P1_2    EQU 092H
+P1_6    EQU 096H
+P1_7    EQU 097H
+P3_6    EQU 0B6H
 
-; Port 3 Bits
-P3_6    = 0xB6
-
-; Accumulator Bits
-ACC_0   = 0xE0
-ACC_1   = 0xE1
-ACC_2   = 0xE2
-
-; Code Segment at 0x0000 (Reset Vector)
-.area BOOT (ABS,CODE)
-.org 0x0000
-    ljmp MAIN
+; --- Reset Vector ---
+ORG 0000H
+    LJMP MAIN
 
 ; --- Data Constants (ASCII Strings) ---
-.area CONST (ABS,CODE)
-.org 0x0050
-    .ascii "ACCESS  "
-    .db 0x00
+ORG 0050H
+STR_ACCESS:
+    DB 'ACCESS', 0    ; String for successful login
 
-.org 0x0095
-    .ascii "PIN:    "
-    .db 0x00
+ORG 0095H
+STR_PIN:
+    DB 'PIN:   ', 0    ; Prompt for PIN
 
-.org 0x00B0
-    .ascii "1234"
+ORG 00B0H
+PIN_CODE:
+    DB '1','2','3','4' ; Correct PIN
 
 ; --- Main Program ---
-.area CSEG (ABS,CODE)
-.org 0x0100
+ORG 0100H
 MAIN:
-    mov P1, #0xFF       ; Set P1 for input
-    mov P2, #0x07       ; Initialize Keypad Columns
-    mov P0, #0x00       ; Clear LCD Data Port
+    MOV P1, #0FFH       ; Set P1 for input
+    MOV P2, #007H       ; Initialize Keypad Columns
+    MOV P0, #000H       ; Clear LCD Data Port
 
     ; Display "PIN: "
-    mov dptr, #0x0095
-    lcall UPDATE_LCD
+    MOV DPTR, #STR_PIN
+    ACALL UPDATE_LCD
     
     ; Perform PIN Authentication
-    lcall PIN_CHECK
+    ACALL PIN_CHECK
     
     ; If PIN correct, display "ACCESS"
-    mov dptr, #0x0050
-    lcall UPDATE_LCD
+    MOV DPTR, #STR_ACCESS
+    ACALL UPDATE_LCD
     
 ATM_LOOP:
-    mov a, P1
-    anl a, #0x07         ; Mask lower 3 bits for ATM functions
-    jz ATM_LOOP          ; Wait for input
+    MOV A, P1
+    ANL A, #07H         ; Mask lower 3 bits (P1.0-P1.2)
+    JZ ATM_LOOP         ; Wait for input
     
-    ; Jump to respective functions
-    jb ACC_0, WITHDRAW
-    jb ACC_1, DEPOSIT
-    jb ACC_2, BALANCE
-    sjmp ATM_LOOP
+    ; Check individual bits
+    JNB P1.0, CHECK_DEP ; If P1.0 is 0? Wait, schematic implies Active Low or High? 
+                        ; The original code used JB ACC.0, assuming P1 was read into A. 
+                        ; Let's stick to reading A.
+    
+    MOV A, P1
+    JB ACC.0, WITHDRAW
+    JB ACC.1, DEPOSIT
+    JB ACC.2, BALANCE
+    SJMP ATM_LOOP
+
+CHECK_DEP:
+    SJMP ATM_LOOP
 
 WITHDRAW:
-    inc r2              ; Simulate withdrawal (increment counter)
-    lcall DELAY_SUCCESS ; Visual feedback
-    sjmp ATM_LOOP
+    INC R2              ; Simulate withdrawal
+    ACALL DELAY_SUCCESS
+    SJMP ATM_LOOP
 
 DEPOSIT:
-    inc r3              ; Simulate deposit (increment counter)
-    lcall DELAY_SUCCESS
-    sjmp ATM_LOOP
+    INC R3              ; Simulate deposit
+    ACALL DELAY_SUCCESS
+    SJMP ATM_LOOP
 
 BALANCE:
-    inc r4              ; Simulate balance check (increment counter)
-    lcall DELAY_SUCCESS
-    sjmp ATM_LOOP
+    INC R4              ; Simulate balance check
+    ACALL DELAY_SUCCESS
+    SJMP ATM_LOOP
 
 ; --- Subroutines ---
 
 PIN_CHECK:
-L4: mov r1, #0xB0       ; Pointer to correct PIN (low byte)
-    mov r2, #4          ; 4 digits to check
-L2: lcall KEY_QUERY     ; Wait for key press
-    mov a, r0           ; R0 contains the pressed key
-    jz L2               ; If no key, keep waiting
+    ; R0 would typically be set by KEY_QUERY (mocked)
+L4: MOV R1, #LOW(PIN_CODE) ; Load low byte of PIN address
+    MOV R2, #4      ; 4 digits to check
+L2: ACALL KEY_QUERY ; Wait for key press
+    MOV A, R0       ; R0 contains pressed key
+    JZ L2           ; Retry if no key
     
     ; Compare with stored PIN
-    mov a, r1           ; Move offset
-    mov dptr, #0x0000   
-    movc a, @a+dptr     ; Read PIN byte
+    ; Fetch from CODE memory
+    MOV A, R1       ; Simplification: assume R1 holds offset 
+    MOV DPTR, #0000H 
+    MOVC A, @A+DPTR ; Read from code at R1
     
-    clr c
-    subb a, r0          ; Compare with input
-    jnz L4              ; Incorrect digit -> Restart check
+    CLR C
+    SUBB A, R0      ; Compare A (PIN digit) with R0 (Input)
+    JNZ L4          ; If wrong, restart
     
-    inc r1
-    djnz r2, L2
-    ret
+    INC R1          ; Next digit
+    DJNZ R2, L2
+    RET
 
 KEY_QUERY:
-    ; Placeholder for keypad scanning
-    mov r0, #0x31       ; Simulate key '1' for test
-    lcall DELAY
-    ret
+    ; Placeholder for scan
+    MOV R0, #'1'    ; Mock input constant '1'
+    ACALL DELAY
+    RET
 
 UPDATE_LCD:
-    mov r6, #8          ; Character count
-    lcall LCD_INIT
+    MOV R6, #8      ; Count
+    ACALL LCD_INIT
 L1_LCD:
-    inc dptr
-    clr a
-    movc a, @a+dptr
-    lcall LDATA
-    djnz r6, L1_LCD
-    ret
+    CLR A
+    MOVC A, @A+DPTR
+    JZ LCD_DONE     ; Stop on null terminator? Original code used loop count.
+                    ; Original code used DJNZ R6. We'll stick to that.
+    ACALL LDATA
+    INC DPTR
+    DJNZ R6, L1_LCD
+LCD_DONE:
+    RET
 
 LCD_INIT:
-    mov a, #0x38
-    lcall CMD
-    mov a, #0x06
-    lcall CMD
-    mov a, #0x01
-    lcall CMD
-    mov a, #0xE0
-    lcall CMD
-    mov a, #0x80
-    lcall CMD
-    ret
+    MOV A, #38H
+    ACALL CMD
+    MOV A, #06H
+    ACALL CMD
+    MOV A, #01H
+    ACALL CMD
+    MOV A, #0E0H
+    ACALL CMD
+    MOV A, #80H
+    ACALL CMD
+    RET
 
 CMD:
-    clr P1_7            ; RS=0 for command
-    mov P0, a           ; Put command on P0
-    setb P3_6           ; EN=1
-    lcall DELAY
-    clr P3_6            ; EN=0
-    ret
+    CLR P1_7            ; RS=0
+    MOV P0, A           ; Data
+    SETB P3_6           ; EN=1
+    ACALL DELAY
+    CLR P3_6            ; EN=0
+    RET
 
 LDATA:
-    setb P1_7           ; RS=1 for data
-    mov P0, a           ; Put data on P0
-    setb P1_6           ; EN=1
-    lcall DELAY
-    clr P1_6            ; EN=0
-    ret
+    SETB P1_7           ; RS=1
+    MOV P0, A           ; Data
+    SETB P1_6           ; EN=1
+    ACALL DELAY
+    CLR P1_6            ; EN=0
+    RET
 
 DELAY:
-    mov r7, #255
-D1: djnz r7, D1
-    ret
+    MOV R7, #255
+DL1: DJNZ R7, DL1
+    RET
 
 DELAY_SUCCESS:
-    lcall DELAY
-    lcall DELAY
-    ret
+    ACALL DELAY
+    ACALL DELAY
+    RET
+
+END

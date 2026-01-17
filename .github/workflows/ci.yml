@@ -11,15 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install assembler (sdcc)
-        run: sudo apt-get update && sudo apt-get install -y sdcc
+      - name: Install assembler (as31)
+        run: sudo apt-get update && sudo apt-get install -y as31
       - name: Build Assembly
         run: |
           mkdir -p build
-          sdas8051 -plosgff src/atm_system.asm
-          mv src/atm_system.rel build/atm.rel
-          sdcc -mmcs51 build/atm.rel -o build/atm.ihx
-          packihx build/atm.ihx > build/atm.hex
+          as31 -Fhex -o build/atm.hex src/atm_system.asm
       - name: Upload HEX artifact
         uses: actions/upload-artifact@v4
         with:
