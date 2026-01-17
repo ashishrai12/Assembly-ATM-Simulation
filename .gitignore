@@ -1,4 +1,23 @@
+# Bytecode and caches
 __pycache__/
-*.pyc
-.pytest_cache/
-assets/*.png
+*.py[cod]
+
+# Virtual environment
+venv/
+.env
+
+# Build artefacts
+build/
+*.hex
+*.obj
+*.lst
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# VSCode settings
+.vscode/

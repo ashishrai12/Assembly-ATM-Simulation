@@ -2,6 +2,8 @@
 
 ![ATM Stats](assets/stats.png)
 
+![Architecture Diagram](assets/architecture_diagram.png)
+
 ## Overview
 This repository contains a professional implementation of a **Password Protected ATM System** using 8051 Assembly language (targeted for the 89C51 microcontroller). It also includes a Python-based simulation suite for logic verification and data visualization.
 

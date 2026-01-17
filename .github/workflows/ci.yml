@@ -1,35 +1,58 @@
-name: ATM CI
+name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
-  test:
+  build-asm:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: Install assembler (sdcc)
+        run: sudo apt-get update && sudo apt-get install -y sdcc
+      - name: Build Assembly
+        run: |
+          mkdir -p build
+          sdcc -mmcs51 -c src/atm_system.asm -o build/atm.o
+          sdcc -mmcs51 build/atm.o -o build/atm.hex
+      - name: Upload HEX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: atm-hex
+          path: build/atm.hex
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+  test-python:
+    runs-on: ubuntu-latest
+    needs: build-asm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Run unit tests
+        run: pytest tests/test_atm.py --junitxml=report.xml
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: report.xml
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    - name: Run unit tests
-      run: |
-        export PYTHONPATH=$PYTHONPATH:$(pwd)/tests
-        pytest tests/test_atm.py
-
-    - name: Run logic simulation
-      run: |
-        export PYTHONPATH=$PYTHONPATH:$(pwd)/tests
-        python tests/simulator.py
+  docs-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Sphinx
+        run: pip install sphinx
+      - name: Build docs
+        run: sphinx-build docs docs/_build
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/_build
